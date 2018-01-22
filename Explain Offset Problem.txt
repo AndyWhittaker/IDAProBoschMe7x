@@ -1,0 +1,26 @@
+I'm been pulling my hair out with trying to figure out how to create an offset with the IDA SDK.
+
+Here's a snippet of code:
+
+Seg0x200@800000:2818 loc_802818:                             ; CODE XREF: sub_80274E+E0.j
+Seg0x200@800000:2818                 movbz   r12, rl6
+Seg0x200@800000:281A                 shl     r12, #1
+Seg0x200@800000:281C                 extp    #0, #1
+Seg0x200@800000:2820                 mov     r4, [r12+430h]
+Seg0x200@800000:2824                 mov     [r12+0E210h], r4
+
+If I select the offset and press "O", IDA correctly creates the offset.
+
+Seg0x200@800000:2818 loc_802818:                             ; CODE XREF: sub_80274E+E0.j
+Seg0x200@800000:2818                 movbz   r12, rl6
+Seg0x200@800000:281A                 shl     r12, #1
+Seg0x200@800000:281C                 extp    #0, #1
+Seg0x200@800000:2820                 mov     r4, [r12+word_430]
+Seg0x200@800000:2824                 mov     [r12+word_E210], r4
+
+If I execute an IDC script with this code:
+
+OpOff(0x802820, 1, 0x800000);
+OpOff(0x802824, 0, 0x800000);
+
+This works great... however, I cannot get the same working in the sdk  :confused: 
