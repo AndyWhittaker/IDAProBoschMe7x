@@ -1043,7 +1043,7 @@ ea_t FunctionSigs::FindBinaryWithDontCare(uchar* ubinstr,unsigned __int32 nSLeng
 	{
 		//replace_wait_box("Searching for binary pattern at address 0x%02X", nIndexA);
 		eaAddr = nIndexA;//Store where we are.
-		nRead = get_8bit(nIndexA, v, iBit);//Read 8bits but remember that nIndexA is automatically incremented
+		nRead = get_8bit(&nIndexA, &v, &iBit);//Read 8bits but remember that nIndexA is automatically incremented
 		if (nIndexA==BADADDR)//Have we ran out of bytes?
 		{
 			eaAddr = BADADDR;
@@ -1060,8 +1060,8 @@ ea_t FunctionSigs::FindBinaryWithDontCare(uchar* ubinstr,unsigned __int32 nSLeng
 		//Check if user wants to exit,
 		if ((eaAddr % 0x100) == 0)
 		{
-			showAddr(eaAddr);// Show an address on the autoanalysis indicator.
-			if (wasBreak())
+			show_addr(eaAddr);// Show an address on the autoanalysis indicator.
+			if (user_cancelled())
 				goto exit;
 				//break;
 		}
@@ -1076,7 +1076,7 @@ ea_t FunctionSigs::FindBinaryWithDontCare(uchar* ubinstr,unsigned __int32 nSLeng
 				if (*(ubinstr + nIndexB) != 0xff) //check for don't care flag
 				{
 					//Read an 8 bit value from the database. This increments eaSearchAddr automatically.
-					nRead = get_8bit(eaSearchAddr, v, iBit);
+					nRead = get_8bit(&eaSearchAddr, &v, &iBit);
 					//msg(":    found '0x%0x' at 0x%0x\n", nRead, eaSearchAddr);
 					if (eaSearchAddr==BADADDR)//Have we ran out of bytes?
 					{
@@ -1095,7 +1095,7 @@ ea_t FunctionSigs::FindBinaryWithDontCare(uchar* ubinstr,unsigned __int32 nSLeng
 						msg(" binary string matched at 0x%x.\n", eaAddr);
 						goto exit;
 					}
-					else if (wasBreak())
+					else if (user_cancelled())
 						goto exit;
 				}
 //				else
@@ -1138,12 +1138,12 @@ ea_t FunctionSigs::CreateFunctionAndComment(ea_t eaAddr, unsigned char* pFuncNam
 	func_t* functFunction = get_func(eaAddr); // get a pointer to the function chunk
 	if (functFunction!=NULL)
 	{
-		del_func_cmt(functFunction,1);//delete the existing comment
+		set_func_cmt(functFunction,"", TRUE);//delete the existing comment
 		//update_func(functFunction);
 		set_func_cmt(functFunction, reinterpret_cast<const char*>(pComment), TRUE);//Make a repeatable comment
 		update_func(functFunction);//Crashes plugin if NULL
 		//Try the next set of addresses
-		eaAddr=functFunction->endEA;// the end of the function just created.
+		eaAddr=functFunction->end_ea;// the end of the function just created.
 	}
 	else
 	{
@@ -1203,8 +1203,8 @@ void FunctionSigs::FindFuncSigsAndComment(ea_t eaStartAddr, ea_t eaEndAddr)
 			//replace_wait_box("Finding function signatures at address: 0x%0X", eaTryAddr);
 			if ((eaAddr % 0x100) == 0)
 			{
-				showAddr(eaAddr);
-				if (wasBreak())
+				show_addr(eaAddr);
+				if (user_cancelled())
 					break;
 			}
 
@@ -1241,8 +1241,8 @@ void FunctionSigs::FindFuncSigsAndComment(ea_t eaStartAddr, ea_t eaEndAddr)
 		{
 			if ((eaAddr % 0x1000) == 0)
 			{
-				showAddr(eaAddr);
-				if (wasBreak())
+				show_addr(eaAddr);
+				if (user_cancelled())
 					break;
 			}
 

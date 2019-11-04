@@ -40,7 +40,7 @@ BoschHelper	boschcode; //our class
 static const char myBoschME7xfunc5_args[] = { VT_LONG, VT_STR, 0 };
 static error_t idaapi myfunc5(idc_value_t *argv, idc_value_t *res)
 {
-	msg("myBoschME7xfunc is called with arg0=%x and arg1=%s\n", argv[0].num, argv[1].str);
+	msg("myBoschME7xfunc is called with arg0=%x and arg1=%s\n", argv[0].num, argv[1].c_str());
   res->num = 5;     // let's return 5
   return eOk;
 }
@@ -50,9 +50,7 @@ static error_t idaapi myfunc5(idc_value_t *argv, idc_value_t *res)
 static int idaapi BoschME7x_callback(void * /*user_data*/, int event_id, va_list /*va*/)
 {
   if ( event_id != ui_msg )     // avoid recursion
-	  if (event_id != ui_obsolete_setstate
-		&& event_id != ui_obsolete_showauto
-      && event_id != ui_refreshmarked ) // ignore uninteresting events
+	  if (event_id != ui_refreshmarked ) // ignore uninteresting events
                     msg("ui_callback %d\n", event_id);
   return 0;                     // 0 means "process the event"
                                 // otherwise the event would be ignored
@@ -89,7 +87,7 @@ static void get_user_defined_prefix(ea_t ea,
   // Ok, seems that we found an instruction line.
 
   // Let's display the size of the current item as the user-defined prefix
-  ulong our_size = get_item_size(ea);
+  asize_t our_size = get_item_size(ea);
 
   // We don't bother about the width of the prefix
   // because it will be padded with spaces by the kernel
@@ -154,9 +152,10 @@ int idaapi init(void)
 
 void idaapi term(void)
 {
-  unhook_from_notification_point(HT_UI, BoschME7x_callback);
+  //unhook_from_notification_point(HT_UI, BoschME7x_callback);
   set_user_defined_prefix(0, NULL);
-  set_idc_func_ex("MyBoschME7xFunc5", NULL, NULL, 0);
+
+  del_idc_func("MyBoschME7xFunc5");
 }
 
 //--------------------------------------------------------------------------
@@ -172,7 +171,7 @@ void idaapi term(void)
 //
 //
 
-void idaapi run(int arg)
+bool idaapi run(size_t arg)
 {
 	unsigned short BOSCH = 0x01;
 
@@ -197,9 +196,9 @@ void idaapi run(int arg)
 
 	if (BOSCH)
 	{
-		if (! AskUsingForm_c(cfg_box_2, &cfg_box_2_answer) )
+		if (! ask_form(cfg_box_2, &cfg_box_2_answer) )
 	    {
-			return;
+			return false;
 		}
 	}
 
@@ -207,7 +206,7 @@ void idaapi run(int arg)
 
 //  if ( inf.filetype != f_PE ) return PLUGIN_SKIP; // only for PE files
 //  ph.id = PLFM_C166
-	msg("myBoschME7xfunc - processor is %s, inf.filetype is %d, ph.id is %d\n", inf.procName, inf.filetype, ph.id);
+	msg("myBoschME7xfunc - processor is %s, inf.filetype is %d, ph.id is %d\n", inf.procname, inf.filetype, ph.id);
     msg("just fyi: the current screen address is: %a\n", get_screen_ea());
 	msg("newBosch =x%x\n ",newBosch);
 
@@ -266,6 +265,7 @@ void idaapi run(int arg)
 	
 
 	msg("BoschMe7x finished.\n");
+	return true;
 }
 
 //--------------------------------------------------------------------------

@@ -16,7 +16,7 @@ typedef int     BOOL;
 #include <name.hpp>
 #include <offset.hpp>
 #include <search.hpp>
-#include <srarea.hpp> //SetDefaultRegisterValue()
+#include <segregs.hpp> //SetDefaultRegisterValue()
 #include <allins.hpp> // processor instructions
 #include <funcs.hpp> //get_func()
 #include <enum.hpp> //for enumerations
@@ -63,8 +63,8 @@ bool BoschHelper::CreateDissCode(ea_t eaStartAddr, ea_t eaEndAddr)
 	{
 		if ((eaAddr % 0x1000) == 0)
 		{
-			showAddr(eaAddr);
-			if (wasBreak())
+			show_addr(eaAddr);
+			if (user_cancelled())
 				break;
 		}
 
@@ -74,19 +74,19 @@ bool BoschHelper::CreateDissCode(ea_t eaStartAddr, ea_t eaEndAddr)
 		if(uWord == 0xffff)
 		{
 //			msg("0xffff read at 0x%x\n", eaAddr);
-			doWord(eaAddr, 4);//Convert to data word
+			create_word(eaAddr, 4);//Convert to data word
 			eaAddr+=1;//skip these bytes
 		}
 		else if(uWord == 0x0000)
 		{
 //			msg("0x0000 read at 0x%x\n", eaAddr);
-			doWord(eaAddr, 4);//Convert to data word
+			create_word(eaAddr, 4);//Convert to data word
 			eaAddr+=1;//skip these bytes
 		}
 		else if(uWord == 0x8000)
 		{
 //			msg("0x8000 read at 0x%x\n", eaAddr);
-			doWord(eaAddr, 4);//Convert to data word
+			create_word(eaAddr, 4);//Convert to data word
 			eaAddr+=1;//skip these bytes
 		}
 		else
@@ -124,7 +124,7 @@ bool BoschHelper::CreateDissCode(ea_t eaStartAddr, ea_t eaEndAddr)
 
 	// Instructions we know that subroutines don't start with.
 	int instrs[] = { C166_jmps, C166_jmpr, C166_ret, C166_reti, C166_retp, C166_rets, C166_rol, C166_add, C166_shr, C166_xor, C166_xorb, 0 };
-	char mnem[MAXSTR];
+	qstring mnem;
 	const char *res;
 	bool	bFound;
 
@@ -133,8 +133,8 @@ bool BoschHelper::CreateDissCode(ea_t eaStartAddr, ea_t eaEndAddr)
 	{
 		if ((eaAddr % 0x100) == 0)
 		{
-			showAddr(eaAddr);
-			if (wasBreak())
+			show_addr(eaAddr);
+			if (user_cancelled())
 				break;
 		}
 
@@ -143,12 +143,14 @@ bool BoschHelper::CreateDissCode(ea_t eaStartAddr, ea_t eaEndAddr)
 		bFound = false;
 
 		//Get the mnemonic at this address
-		res = ua_mnem(eaAddr, mnem, sizeof(mnem)-1);
+		insn_t cmd;
+		decode_insn(&cmd, eaAddr);
 
 		// Check the mnemonic of this address against all
 		// mnemonics we're interested in.
 		for (int i = 0; instrs[i] != 0; i++)
 		{
+			
 			if (cmd.itype == instrs[i])
 			{
 				bFound = true;
@@ -163,7 +165,7 @@ bool BoschHelper::CreateDissCode(ea_t eaStartAddr, ea_t eaEndAddr)
 				func_t *func = get_func(eaAddr);
 				if (func != NULL)
 				{
-					eaAddr += (func->endEA - func->startEA);
+					eaAddr += (func->end_ea - func->start_ea);
 				}
 				else
 				{
@@ -190,8 +192,7 @@ bool BoschHelper::EnumDTCflags(ea_t eaStartAddr, ea_t eaEndAddr)
 	msg("Searching for DTC setting flags from 0x%x through to 0x%x\n", eaStartAddr, eaEndAddr);
 
 	// Instructions we know that DTC setting is done by.
-	char mnem[MAXSTR];
-	const char *res;
+	qstring mnem;
 //	uval_t		uvalOp1Value, uvalOp2Value;
 
 	ea_t	eaAddr;
@@ -203,22 +204,24 @@ bool BoschHelper::EnumDTCflags(ea_t eaStartAddr, ea_t eaEndAddr)
 	{
 		if ((eaAddr % 0x100) == 0)
 		{
-			showAddr(eaAddr);
-			if (wasBreak())
+			show_addr(eaAddr);
+			if (user_cancelled())
 				break;
 		}
 
 		// Get the flags for this address
-		flags_t flags = getFlags(eaAddr);
+		flags_t flags = get_flags(eaAddr);
 
 		// Only look at the address if it's a head byte, i.e.
 		// the start of an instruction and is code.
-		if (isHead(flags) && isCode(flags))
+		if (is_head(flags) && is_code(flags))
 		{
 			//char mnem[MAXSTR];
 
 			//Get the mnemonic at this address
-			res = ua_mnem(eaAddr, mnem, sizeof(mnem)-1);
+			
+			insn_t cmd;
+			decode_insn(&cmd, eaAddr);
 			// Check the mnemonic of this address against all
 			// mnemonics we're interested in.
 
@@ -265,7 +268,7 @@ bool BoschHelper::SetC16xRegs(const char *szRegName, sel_t value)
 
 	iReg = str2reg(szRegName);
 	msg("Setting register %s, number %i to %x", szRegName, iReg, value);
-	if (set_default_segreg_value(nullptr, iReg, value))
+	if (set_default_sreg_value(nullptr, iReg, value))
 		msg(" successful.\n");
 	else
 	{
@@ -354,8 +357,8 @@ bool BoschHelper::FindAndCreateArrayOffsets(ea_t eaStartAddr, ea_t eaEndAddr)
 
 	// Instructions we know that contain arrays.
 	int instrs[] = { C166_mov, C166_movb, 0 };
-	char mnem[MAXSTR];
-	const char *res;
+	qstring mnem;
+	qstring res;
 	bool	bFound;
 
 	show_wait_box("Searching for array offsets...");
@@ -367,20 +370,22 @@ bool BoschHelper::FindAndCreateArrayOffsets(ea_t eaStartAddr, ea_t eaEndAddr)
 
 		if ((eaAddr % 0x100) == 0)
 		{
-			showAddr(eaAddr);
-			if (wasBreak())
+			show_addr(eaAddr);
+			if (user_cancelled())
 				break;
 		}
 
 		//Get the flags for this address
-		flags_t flags = getFlags(eaAddr);
+		flags_t flags = get_flags(eaAddr);
 
 		//Only look at the address if it's a head byte
 		//i.e. the start of an instruction and its code
-		if(isHead(flags) && isCode(flags))
+		if(is_head(flags) && is_code(flags))
 		{
 			//Get the mnemonic at this address
-			res = ua_mnem(eaAddr, mnem, sizeof(mnem)-1);
+			insn_t cmd;
+			decode_insn(&cmd, eaAddr);
+
 			// Check the mnemonic of this address against all
 			// mnemonics we're interested in.
 			for (int i = 0; instrs[i] != 0; i++)
@@ -410,18 +415,18 @@ bool BoschHelper::FindAndCreateArrayOffsets(ea_t eaStartAddr, ea_t eaEndAddr)
 */				
 				// Is the instruction Memory Reg [Base Reg + Index Reg + Displacement] phrase+addr?
 				// If so, then these need converting into offset addresses
-				if(cmd.Operands[0].type == o_displ)
+				if(cmd.ops[0].type == o_displ)
 				{
 					//r0 is a special register and should not be offsetted
-					if(cmd.Operands[0].reg!= 0)
-						if(cmd.Operands[0].addr >= 0x00ff)
+					if(cmd.ops[0].reg!= 0)
+						if(cmd.ops[0].addr >= 0x00ff)
 							MakeC166Offset(eaAddr, 0);
 				}
-				else if(cmd.Operands[1].type == o_displ)
+				else if(cmd.ops[1].type == o_displ)
 				{
 					//r0 is a special register and should not be offsetted
-					if(cmd.Operands[1].reg!= 0)
-						if(cmd.Operands[1].addr >= 0x00ff)
+					if(cmd.ops[1].reg!= 0)
+						if(cmd.ops[1].addr >= 0x00ff)
 							MakeC166Offset(eaAddr, 1);
 				}
 			}
@@ -442,9 +447,13 @@ void BoschHelper::MakeC166Offset(ea_t eaAddr, int nOp)
 	ea_t	eaDpp;
 	sel_t	selSelector;
 					
+
+	insn_t cmd;
+	decode_insn(&cmd, eaAddr);
+
 	//Find out what DPP the address we've found lives in.
 	//The DPP selector is the top two bits
-	eaDpp = (cmd.Operands[1].addr & 0xc000) >> 14;
+	eaDpp = (cmd.ops[1].addr & 0xc000) >> 14;
 	if(eaDpp == 0)
 	{
 		iReg = str2reg("DPP0");
@@ -463,7 +472,7 @@ void BoschHelper::MakeC166Offset(ea_t eaAddr, int nOp)
 	}
 	//Get the value of the selected register
 	//Don't ask me why but the register needs to be multiplied by 16 to become the base
-	selSelector = get_segreg(eaAddr, iReg) << 4;
+	selSelector = get_sreg(eaAddr, iReg) << 4;
 	ea_t eaOffsetBase = get_offbase(eaAddr, nOp);//For information, not used
 	msg("**** At address 0x%x DPP number 0x%x for Register 0x%x, is 0x%x. Op is 0x%x. Offset base is 0x%x\n", eaAddr, eaDpp, iReg, selSelector, nOp, eaOffsetBase);
 	//Create the offset
@@ -501,9 +510,8 @@ bool BoschHelper::FindAndCreateImplicitOffsets(ea_t eaStartAddr, ea_t eaEndAddr)
 
 	// Instructions we know that contain addresses.
 	int instrs[] = { C166_mov, 0 };
-	char mnem[MAXSTR];
-	const char *res;
-	bool	bFound;
+	qstring mnem;
+	bool bFound;
 
 	show_wait_box("Searching for implicit offsets...");
 
@@ -514,20 +522,22 @@ bool BoschHelper::FindAndCreateImplicitOffsets(ea_t eaStartAddr, ea_t eaEndAddr)
 
 		if ((eaAddr % 0x100) == 0)
 		{
-			showAddr(eaAddr);
-			if (wasBreak())
+			show_addr(eaAddr);
+			if (user_cancelled())
 				break;
 		}
 
 		//Get the flags for this address
-		flags_t flags = getFlags(eaAddr);
+		flags_t flags = get_flags(eaAddr);
 
 		//Only look at the address if it's a head byte
 		//i.e. the start of an instruction and its code
-		if(isHead(flags) && isCode(flags))
+		if(is_head(flags) && is_code(flags))
 		{
 			//Get the mnemonic at this address
-			res = ua_mnem(eaAddr, mnem, sizeof(mnem)-1);
+			insn_t cmd;
+			decode_insn(&cmd, eaAddr);
+
 			// Check the mnemonic of this address against all
 			// mnemonics we're interested in.
 			for (int i = 0; instrs[i] != 0; i++)
@@ -543,25 +553,25 @@ bool BoschHelper::FindAndCreateImplicitOffsets(ea_t eaStartAddr, ea_t eaEndAddr)
 				//check the type of mnemonic.
 				msg("Instruction mnemonic at 0x%x :->\n", eaAddr);
 				msg("    Op0: n = %d type = %d reg = %d value = %a addr = %a\n",
-					cmd.Operands[0].n,
-					cmd.Operands[0].type,
-					cmd.Operands[0].reg,
-					cmd.Operands[0].value,
-					cmd.Operands[0].addr);
+					cmd.ops[0].n,
+					cmd.ops[0].type,
+					cmd.ops[0].reg,
+					cmd.ops[0].value,
+					cmd.ops[0].addr);
 				msg("    Op1: n = %d type = %d reg = %d value = %a addr = %a\n",
-					cmd.Operands[1].n,
-					cmd.Operands[1].type,
-					cmd.Operands[1].reg,
-					cmd.Operands[1].value,
-					cmd.Operands[1].addr);
+					cmd.ops[1].n,
+					cmd.ops[1].type,
+					cmd.ops[1].reg,
+					cmd.ops[1].value,
+					cmd.ops[1].addr);
 				
 				// Is the instruction a Memory Ref [Base Reg + Index Reg] and not r0?
 				// If so, then we need to back track and see when it's loaded with an immediate
 				// Need to do this for cmd.Operands[0] and cmd.Operands[1]
 				// Also backtrack one instruction and see if there's a "exts"
-				if((cmd.Operands[1].type == o_phrase) & (cmd.Operands[1].reg != 0))
+				if((cmd.ops[1].type == o_phrase) & (cmd.ops[1].reg != 0))
 				{
-					msg("We're at a phrase and need to look for where r%a was immediate loaded.\n", cmd.Operands[1].reg);
+					msg("We're at a phrase and need to look for where r%a was immediate loaded.\n", cmd.ops[1].reg);
 					// We need to backtrack & find where this register was loaded immediate at op1
 
 					//r0 is a special register and should not be offsetted
@@ -795,14 +805,14 @@ void BoschHelper::SearchForDTCFlagSetting(string sECU)
 	set_enum_bf(enumtID, 1);//Set the enum to a bitfield
 	//Now fill the enum structure
 	add_enum_member(enumtID,"DTCFieldA_H0",	0x1,	0x1);
-	set_enum_cmt(get_const(enumtID, 0x1, NULL, 0x1),"Select DTC Group A",1);
+	// TODO-STHO set_enum_cmt(get_const(enumtID, 0x1, NULL, 0x1),"Select DTC Group A",1);
 	//set_enum_cmt(get_const(enumtID, 0x1, NULL, 0x1), "Select DTC Group A", 1);
 	add_enum_member(enumtID, "DTCFieldB_H1", 0x2, 0x2);
-	set_enum_cmt(get_const(enumtID, 0x2, NULL, 0x2),"Select DTC Group B",1);
+	// TODO-STHO set_enum_cmt(get_const(enumtID, 0x2, NULL, 0x2),"Select DTC Group B",1);
 	add_enum_member(enumtID,"DTCFieldC_H2",	0x4,	0x4);
-	set_enum_cmt(get_const(enumtID, 0x4, NULL, 0x4),"Select DTC Group C",1);
+	// TODO-STHO set_enum_cmt(get_const(enumtID, 0x4, NULL, 0x4),"Select DTC Group C",1);
 	add_enum_member(enumtID,"DTCFieldD_H3",	0x8,	0x8);
-	set_enum_cmt(get_const(enumtID, 0x8, NULL, 0x8),"Select DTC Group D",1);
+	// TODO-STHO set_enum_cmt(get_const(enumtID, 0x8, NULL, 0x8),"Select DTC Group D",1);
 	add_enum_member(enumtID,"DTCBit_H4",	0x10,	0x10);
 	add_enum_member(enumtID,"DTCBit_H5",	0x20,	0x20);
 	add_enum_member(enumtID,"DTCBit_H6",	0x40,	0x40);
@@ -828,7 +838,7 @@ void BoschHelper::SearchForFuncSigsAndThenCmt(string sECU)
 {
 	if (sECU == "ME761Astra")
 	{
-		msg("*** ME761Astra 1st pass\n");
+		msg("**s* ME761Astra 1st pass\n");
 		functionsigsclass.FindFuncSigsAndComment(0x0, 0x3fff);
 		msg("*** ME761Astra 2nd pass\n");
 		functionsigsclass.FindFuncSigsAndComment(0x4000, 0x7fff);

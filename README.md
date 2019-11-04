@@ -5,6 +5,10 @@ This is a very simple plugin for IDA Pro mainly to save a few hours of work. Thi
 
 This IDA Pro plug-in reads in a Bosch ME7.x binary, asks a few questions and then goes through said binary, trying to disassemble it.
 
+## Changes to Andy Whittakers version
+
+Plugin has been updated to support newer IDA sdk versions (7+), you may need to update the project config to build correctly with our environment, idasdk installation path etc...
+
 ## Important Points
 
 Because a binary is essentially a collection of bytes, there is no formatting of an executable like you would expect on, say, a Windows exe or a Linux executable. Therefore you have to instruct IDA to load the binary exactly as it should be.

@@ -7,6 +7,7 @@ typedef int     BOOL;
 #define TRUE    1
 #define NULL    0
 
+
 #include <pro.h>
 #include <kernwin.hpp>
 #include <bytes.hpp>
@@ -57,7 +58,7 @@ void IDAMemCopyPaste::copy_buffer(ea_t eaStartAddr, ea_t eaEndAddr)
 		return;
 	}
 	// Get the bytes from the file, store it in our buffer
-	if (get_many_bytes(eaStartAddr, data, size)) 
+	if (get_bytes(data, size, eaStartAddr))
 	{
 		msg("Successfully copied %d bytes from %a into memory.\n", size, eaStartAddr);
 	}
@@ -80,7 +81,7 @@ void IDAMemCopyPaste::paste_buffer(ea_t eaStartAddr, ea_t eaEndAddr)
 		return;
 	}
 	// Patch the binary (paste)
-	patch_many_bytes(eaStartAddr, data, size);
+	patch_bytes(eaStartAddr, data, size);
 	msg("Patched %d bytes at %a.\n", size, eaStartAddr); 
 }
 
